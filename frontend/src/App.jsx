@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard'
 import PasswordSimulator from './components/PasswordSimulator'
 import PhishingSimulator from './components/PhishingSimulator'
 import VishingSimulator from './components/VishingSimulator'
+import UserBehaviorAnalysis from './components/UserBehaviorAnalysis'
 import Navigation from './components/Navigation'
 import Footer from './components/Footer'
 
@@ -44,6 +45,7 @@ function App() {
           {activeTab === 'password' && <PasswordSimulator />}
           {activeTab === 'phishing' && <PhishingSimulator />}
           {activeTab === 'vishing' && <VishingSimulator />}
+          {activeTab === 'behavior' && <UserBehaviorAnalysis />}
         </div>
       </main>
       <Footer />

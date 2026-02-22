@@ -31,6 +31,17 @@ export const vishingAPI = {
   simulateCampaign: (data) => api.post('/api/vishing/campaign', data),
   getHistory: (limit = 50) => api.get(`/api/vishing/history?limit=${limit}`),
   getStats: () => api.get('/api/vishing/stats'),
+  transcribe: (formData) =>
+    axios.post(`${API_BASE_URL}/api/vishing/transcribe`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+}
+
+// User Behavior Analysis API
+export const userBehaviorAPI = {
+  analyze: (data) => api.post('/api/user-behavior/analyze', data),
+  getUser: (userId) => api.get(`/api/user-behavior/${userId}`),
+  getStats: () => api.get('/api/user-behavior/stats/overview'),
 }
 
 export default api

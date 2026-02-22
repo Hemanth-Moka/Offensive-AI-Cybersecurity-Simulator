@@ -17,12 +17,20 @@ class PasswordHashRequest(BaseModel):
     hash_type: str  # MD5, SHA256, bcrypt
     attack_type: str  # dictionary, brute_force, hybrid, ai_guided
     user_metadata: Optional[Dict] = None
+    user_id: Optional[str] = None  # For AI learning
+    max_attempts: Optional[int] = None
+    charset: Optional[str] = None  # For brute force
+    max_length: Optional[int] = 4  # For brute force
 
 class HashOnlyRequest(BaseModel):
     hash_value: str
     hash_type: str
     attack_type: str
     user_metadata: Optional[Dict] = None
+    user_id: Optional[str] = None  # For AI learning
+    max_attempts: Optional[int] = None
+    charset: Optional[str] = None  # For brute force
+    max_length: Optional[int] = 4  # For brute force
 
 class AttackResponse(BaseModel):
     cracked: Optional[str]
@@ -51,13 +59,21 @@ async def analyze_password(request: PasswordHashRequest, db: Session = Depends(g
     simulator = PasswordAttackSimulator()
     
     if request.attack_type == "dictionary":
-        result = simulator.dictionary_attack(hash_value, request.hash_type)
+        result = simulator.dictionary_attack(
+            hash_value, request.hash_type, 
+            max_attempts=request.max_attempts
+        )
     elif request.attack_type == "brute_force":
-        result = simulator.brute_force_attack(hash_value, request.hash_type)
+        result = simulator.brute_force_attack(
+            hash_value, request.hash_type,
+            max_length=request.max_length or 4,
+            max_attempts=request.max_attempts or 10000,
+            charset=request.charset or 'lowercase+digits'
+        )
     elif request.attack_type == "hybrid":
         result = simulator.hybrid_attack(hash_value, request.hash_type, request.user_metadata)
     elif request.attack_type == "ai_guided":
-        result = simulator.ai_guided_attack(hash_value, request.hash_type, request.user_metadata)
+        result = simulator.ai_guided_attack(hash_value, request.hash_type, request.user_metadata, request.user_id)
     else:
         raise HTTPException(status_code=400, detail="Invalid attack type")
     
@@ -90,13 +106,21 @@ async def crack_hash(request: HashOnlyRequest, db: Session = Depends(get_db)):
     simulator = PasswordAttackSimulator()
     
     if request.attack_type == "dictionary":
-        result = simulator.dictionary_attack(request.hash_value, request.hash_type)
+        result = simulator.dictionary_attack(
+            request.hash_value, request.hash_type,
+            max_attempts=request.max_attempts
+        )
     elif request.attack_type == "brute_force":
-        result = simulator.brute_force_attack(request.hash_value, request.hash_type)
+        result = simulator.brute_force_attack(
+            request.hash_value, request.hash_type,
+            max_length=request.max_length or 4,
+            max_attempts=request.max_attempts or 10000,
+            charset=request.charset or 'lowercase+digits'
+        )
     elif request.attack_type == "hybrid":
         result = simulator.hybrid_attack(request.hash_value, request.hash_type, request.user_metadata)
     elif request.attack_type == "ai_guided":
-        result = simulator.ai_guided_attack(request.hash_value, request.hash_type, request.user_metadata)
+        result = simulator.ai_guided_attack(request.hash_value, request.hash_type, request.user_metadata, request.user_id)
     else:
         raise HTTPException(status_code=400, detail="Invalid attack type")
     

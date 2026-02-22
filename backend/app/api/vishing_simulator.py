@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, List, Dict
+import os
 from app.database.database import get_db
 from app.database.models import VishingCampaign
 from app.models.vishing_detector import VishingSimulator
 from app.models.risk_scorer import RiskScorer
+from config import ALLOWED_AUDIO_FORMATS, MAX_UPLOAD_SIZE, UPLOAD_DIR
 
 router = APIRouter(prefix="/api/vishing", tags=["vishing"])
 
@@ -29,6 +31,42 @@ class VishingResponse(BaseModel):
     caller_analysis: Dict
     overall_risk: Dict
     id: Optional[int] = None
+
+
+@router.post("/transcribe")
+async def transcribe_audio(audio_file: UploadFile = File(...)):
+    """Transcribe uploaded audio (placeholder response for demo mode)."""
+    filename = audio_file.filename or ""
+    file_extension = filename.split(".")[-1].lower() if "." in filename else ""
+
+    if file_extension not in ALLOWED_AUDIO_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported audio format. Allowed: {', '.join(ALLOWED_AUDIO_FORMATS)}",
+        )
+
+    contents = await audio_file.read()
+    if len(contents) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds {MAX_UPLOAD_SIZE // (1024 * 1024)}MB limit",
+        )
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    transcript = """
+    [Demo transcript]
+    Hello, this is your bank calling about suspicious account activity.
+    Please verify your account details immediately to avoid restrictions.
+    """
+
+    return {
+        "transcript": transcript.strip(),
+        "confidence": 0.92,
+        "language": "en-US",
+        "duration_seconds": 45,
+        "message": "Demo transcription completed. Integrate a speech-to-text provider for production.",
+    }
 
 @router.post("/analyze", response_model=VishingResponse)
 async def analyze_call(request: CallAnalysisRequest, db: Session = Depends(get_db)):

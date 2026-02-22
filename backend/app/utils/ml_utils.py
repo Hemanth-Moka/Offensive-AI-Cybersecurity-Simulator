@@ -1,13 +1,14 @@
 import re
 import numpy as np
 from typing import List, Dict, Tuple
+from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import joblib
 import os
 
 class PasswordPatternLearner:
-    """AI model to learn common password patterns"""
+    """AI model to learn common password patterns and user behavior"""
     
     def __init__(self):
         self.common_patterns = {
@@ -18,6 +19,9 @@ class PasswordPatternLearner:
             'names': r'[A-Z][a-z]{3,}',
             'common_words': r'(password|admin|welcome|login)'
         }
+        # Learned patterns from historical data
+        self.learned_patterns = []
+        self.user_behavior_trends = {}
         
     def analyze_password(self, password: str) -> Dict:
         """Analyze password for common patterns"""
@@ -57,8 +61,27 @@ class PasswordPatternLearner:
             'has_special': has_special
         }
     
-    def generate_guesses(self, user_metadata: Dict = None) -> List[str]:
-        """Generate AI-guided password guesses based on patterns"""
+    def learn_from_password(self, password: str, user_id: str = None):
+        """Learn patterns from analyzed passwords to improve future guesses"""
+        analysis = self.analyze_password(password)
+        patterns = analysis.get('patterns_found', [])
+        
+        if user_id:
+            if user_id not in self.user_behavior_trends:
+                self.user_behavior_trends[user_id] = {
+                    'common_patterns': [],
+                    'password_lengths': [],
+                    'complexity_scores': []
+                }
+            
+            self.user_behavior_trends[user_id]['common_patterns'].extend(patterns)
+            self.user_behavior_trends[user_id]['password_lengths'].append(len(password))
+            self.user_behavior_trends[user_id]['complexity_scores'].append(analysis.get('complexity', 0))
+        
+        self.learned_patterns.extend(patterns)
+    
+    def generate_guesses(self, user_metadata: Dict = None, user_id: str = None) -> List[str]:
+        """Generate AI-guided password guesses based on learned patterns and user behavior"""
         guesses = []
         
         # Common passwords
@@ -67,6 +90,30 @@ class PasswordPatternLearner:
             'password123', 'admin', 'welcome', 'letmein', 'monkey'
         ]
         guesses.extend(common_passwords)
+        
+        # Use learned patterns if available
+        if self.learned_patterns:
+            pattern_counts = Counter(self.learned_patterns)
+            most_common = [p for p, _ in pattern_counts.most_common(5)]
+            # Generate guesses based on learned patterns
+            for pattern in most_common:
+                if pattern == 'dates':
+                    guesses.extend(['2024', '2023', '2022', '2021', '2020'])
+                elif pattern == 'names':
+                    guesses.extend(['John', 'Mary', 'David', 'Sarah', 'Michael'])
+        
+        # Use user-specific behavior if available
+        if user_id and user_id in self.user_behavior_trends:
+            trends = self.user_behavior_trends[user_id]
+            avg_length = sum(trends['password_lengths']) / len(trends['password_lengths']) if trends['password_lengths'] else 8
+            common_user_patterns = Counter(trends['common_patterns']).most_common(3)
+            
+            # Generate guesses based on user's historical patterns
+            for pattern, _ in common_user_patterns:
+                if pattern == 'sequential':
+                    guesses.extend(['123', '1234', '12345', 'abc', 'qwerty'])
+                elif pattern == 'dates':
+                    guesses.extend(['1990', '2000', '1985', '1995'])
         
         # If user metadata provided, generate personalized guesses
         if user_metadata:
@@ -80,18 +127,37 @@ class PasswordPatternLearner:
                     name_lower + '123',
                     name_lower + '1234',
                     name_lower.capitalize() + '1',
+                    name_lower + '!',
+                    name_lower + '@123',
                 ])
             
             if dob:
                 year = dob.split('-')[0] if '-' in dob else dob[:4]
+                month = dob.split('-')[1] if '-' in dob and len(dob.split('-')) > 1 else None
+                day = dob.split('-')[2] if '-' in dob and len(dob.split('-')) > 2 else None
+                
                 guesses.extend([
                     year,
                     'password' + year,
                     name_lower + year if name else None
                 ])
+                
+                if month:
+                    guesses.append(month + year)
+                if day:
+                    guesses.append(day + month + year if month else None)
+                
                 guesses = [g for g in guesses if g]
         
-        return guesses[:50]  # Limit to 50 guesses
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_guesses = []
+        for guess in guesses:
+            if guess and guess not in seen:
+                seen.add(guess)
+                unique_guesses.append(guess)
+        
+        return unique_guesses[:50]  # Limit to 50 guesses
 
 class PhishingDetector:
     """AI model to detect phishing attempts"""

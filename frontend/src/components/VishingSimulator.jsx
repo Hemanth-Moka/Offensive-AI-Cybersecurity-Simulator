@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { vishingAPI } from '../services/api'
 import toast from 'react-hot-toast'
-import { HiOutlinePhone, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineShieldCheck } from 'react-icons/hi'
+import { HiOutlinePhone, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineShieldCheck, HiOutlineRefresh } from 'react-icons/hi'
 
 const VishingSimulator = () => {
   const [formData, setFormData] = useState({
@@ -11,10 +11,19 @@ const VishingSimulator = () => {
   })
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingTranscription, setLoadingTranscription] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
   const [history, setHistory] = useState([])
 
   useEffect(() => {
     loadHistory()
+    
+    // Real-time history updates every 10 seconds
+    const interval = setInterval(() => {
+      loadHistory()
+    }, 10000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const loadHistory = async () => {
@@ -23,6 +32,70 @@ const VishingSimulator = () => {
       setHistory(response.data)
     } catch (error) {
       console.error('Failed to load history:', error)
+    }
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validFormats = ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-wav']
+    const validExtensions = ['.mp3', '.wav', '.m4a']
+    const fileName = file.name.toLowerCase()
+    
+    const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext))
+    const hasValidMimetype = validFormats.includes(file.type) || file.type === 'audio/m4a'
+
+    if (!hasValidExtension && !hasValidMimetype) {
+      toast.error('Invalid format. Please upload mp3, wav, or m4a files.')
+      e.target.value = ''
+      return
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File size exceeds 50MB limit')
+      e.target.value = ''
+      return
+    }
+
+    setSelectedFile(file)
+  }
+
+  const handleTranscribe = async (e) => {
+    e.preventDefault()
+    if (!selectedFile) {
+      toast.error('Please select an audio file to transcribe')
+      return
+    }
+
+    setLoadingTranscription(true)
+    try {
+      const formData = new FormData()
+      formData.append('audio_file', selectedFile)
+
+      const response = await vishingAPI.transcribe(formData)
+      
+      if (response.data?.transcript) {
+        setFormData(prev => ({
+          ...prev,
+          callScript: response.data.transcript
+        }))
+        toast.success('Transcription complete! Ready to analyze.')
+        setSelectedFile(null)
+        if (document.getElementById('audio-input')) {
+          document.getElementById('audio-input').value = ''
+        }
+      } else {
+        toast.error('No transcript returned from server')
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          'Transcription failed'
+      toast.error(errorMessage)
+      console.error('Transcription error:', error)
+    } finally {
+      setLoadingTranscription(false)
     }
   }
 
@@ -130,6 +203,59 @@ const VishingSimulator = () => {
           >
             Load Sample Legitimate Call
           </button>
+        </div>
+
+        {/* Voice Upload Section */}
+        <div className="mb-6 card bg-indigo-50 border-indigo-200">
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <h4 className="text-lg font-bold text-gray-900 mb-2">📞 Upload Call Recording</h4>
+              <p className="text-sm text-gray-700 mb-4">
+                Upload an audio file (mp3, wav, m4a) to automatically transcribe and analyze the call. Max 50MB.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <input
+                    id="audio-input"
+                    type="file"
+                    accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4"
+                    onChange={handleFileSelect}
+                    disabled={loadingTranscription}
+                    className="block w-full text-sm text-gray-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-indigo-100 file:text-indigo-700
+                      hover:file:bg-indigo-200
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                      cursor-pointer"
+                  />
+                  {selectedFile && (
+                    <p className="text-xs text-indigo-700 mt-2">
+                      ✓ {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={handleTranscribe}
+                  disabled={!selectedFile || loadingTranscription}
+                  className="btn-secondary bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {loadingTranscription ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Transcribing...
+                    </span>
+                  ) : (
+                    'Transcribe Audio'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Form */}
@@ -352,7 +478,17 @@ const VishingSimulator = () => {
       {/* History Section */}
       {history.length > 0 && (
         <div className="card">
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Recent Analysis History</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Recent Analysis History</h3>
+            <button
+              onClick={loadHistory}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+              title="Refresh history"
+            >
+              <HiOutlineRefresh size={16} />
+              Refresh
+            </button>
+          </div>
           <div className="overflow-x-auto scrollbar-hide">
             <div className="inline-block min-w-full align-middle">
               <table className="min-w-full divide-y divide-gray-200">

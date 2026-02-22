@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { HiOutlineChartBar, HiOutlineLockClosed, HiOutlineMail, HiOutlinePhone, HiMenu, HiX } from "react-icons/hi";
+import { HiOutlineChartBar, HiOutlineLockClosed, HiOutlineMail, HiOutlinePhone, HiOutlineUser, HiMenu, HiX } from "react-icons/hi";
 import { FaBrain } from "react-icons/fa";
 import { FaExclamationTriangle } from "react-icons/fa";
 
@@ -11,6 +11,7 @@ const Navigation = ({ activeTab, setActiveTab }) => {
     { id: "password", label: "Password Simulator", icon: <HiOutlineLockClosed size={20} />, shortLabel: "Password" },
     { id: "phishing", label: "Phishing Simulator", icon: <HiOutlineMail size={20} />, shortLabel: "Phishing" },
     { id: "vishing", label: "Vishing Simulator", icon: <HiOutlinePhone size={20} />, shortLabel: "Vishing" },
+    { id: "behavior", label: "User Behavior", icon: <HiOutlineUser size={20} />, shortLabel: "Behavior" },
   ];
 
   return (

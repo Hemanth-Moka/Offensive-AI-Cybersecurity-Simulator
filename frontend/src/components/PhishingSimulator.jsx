@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { phishingAPI } from '../services/api'
 import toast from 'react-hot-toast'
-import { HiOutlineMail, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineShieldCheck } from 'react-icons/hi'
+import { HiOutlineMail, HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineShieldCheck, HiOutlineRefresh } from 'react-icons/hi'
 
 const PhishingSimulator = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +15,13 @@ const PhishingSimulator = () => {
 
   useEffect(() => {
     loadHistory()
+    
+    // Real-time history updates every 10 seconds
+    const interval = setInterval(() => {
+      loadHistory()
+    }, 10000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const loadHistory = async () => {
@@ -334,7 +341,17 @@ const PhishingSimulator = () => {
       {/* History Section */}
       {history.length > 0 && (
         <div className="card">
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Recent Analysis History</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Recent Analysis History</h3>
+            <button
+              onClick={loadHistory}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+              title="Refresh history"
+            >
+              <HiOutlineRefresh size={16} />
+              Refresh
+            </button>
+          </div>
           <div className="overflow-x-auto scrollbar-hide">
             <div className="inline-block min-w-full align-middle">
               <table className="min-w-full divide-y divide-gray-200">
